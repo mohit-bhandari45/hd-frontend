@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { REGISTER_ENDPOINT, api, GET_OTP } from "../../lib/api";
 import { useNavigate } from "react-router-dom";
+import { api, GET_OTP, REGISTER_ENDPOINT } from "../../lib/api";
 
 const SignupPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -11,6 +11,9 @@ const SignupPage: React.FC = () => {
   });
 
   const [showOtpField, setShowOtpField] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -23,36 +26,60 @@ const SignupPage: React.FC = () => {
   };
 
   const handleGetOtp = async () => {
-    if (formData.username && formData.dob && formData.email) {
-      setShowOtpField(true);
-      try {
-        await api.post(GET_OTP, { email: formData.email });
-      } catch (e) {
-        console.log(e);
+    if (!formData.username || !formData.dob || !formData.email) {
+      setErrorMessage("Please fill all required fields");
+      return;
+    }
+
+    setErrorMessage("");
+    setSuccessMessage("");
+    setLoading(true);
+
+    try {
+      const res = await api.post(GET_OTP, { email: formData.email });
+      const data = res.data as { success: boolean };
+      if (data.success) {
+        setShowOtpField(true);
+        setSuccessMessage("OTP sent to your email");
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      setErrorMessage(e.response?.data?.error || "Failed to send OTP. Try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSignUp = async () => {
-    if (formData.otp) {
-      try {
-        const res = await api.post(REGISTER_ENDPOINT, formData);
-        if (res.status == 201) {
-          const token = (res.data as { token: string }).token;
-          localStorage.setItem("token", token);
-          navigate("/dashboard");
-        }
-      } catch (e) {
-        console.log(e);
+    if (!formData.otp) {
+      setErrorMessage("Please enter the OTP");
+      return;
+    }
+
+    setErrorMessage("");
+    setSuccessMessage("");
+    setLoading(true);
+
+    try {
+      const res = await api.post(REGISTER_ENDPOINT, formData);
+      if (res.status === 201) {
+        const token = (res.data as { token: string }).token;
+        localStorage.setItem("token", token);
+        navigate("/dashboard");
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      setErrorMessage(e.response?.data?.error || "Registration failed. Try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-white flex flex-wrap">
       {/* Left side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center ">
-        {/* Logo  */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center relative">
+        {/* Logo */}
         <div
           className="absolute top-6 left-6 flex p-4 items-center gap-2 
                   lg:static lg:mb-10 lg:self-start justify-center w-full lg:w-auto"
@@ -60,6 +87,7 @@ const SignupPage: React.FC = () => {
           <img src="/icon.png" alt="logo" className="h-10 w-auto" />
           <span className="text-2xl font-bold text-gray-900">HD</span>
         </div>
+
         <div className="w-full lg:w-3/4 xl:w-2/3 px-8">
           {/* Header */}
           <div className="mb-8">
@@ -71,14 +99,25 @@ const SignupPage: React.FC = () => {
             </p>
           </div>
 
+          {/* Alerts */}
+          <div className="space-y-2">
+            {errorMessage && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">
+                {errorMessage}
+              </div>
+            )}
+            {successMessage && (
+              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded">
+                {successMessage}
+              </div>
+            )}
+          </div>
+
           {/* Form */}
-          <div className="space-y-4">
+          <div className="space-y-4 mt-4">
             {/* Full Name */}
             <div>
-              <label
-                htmlFor="fullName"
-                className="block text-sm text-gray-600 mb-2"
-              >
+              <label htmlFor="username" className="block text-sm text-gray-600 mb-2">
                 Your Name
               </label>
               <input
@@ -108,14 +147,7 @@ const SignupPage: React.FC = () => {
                     strokeWidth="2"
                     className="text-gray-400"
                   >
-                    <rect
-                      x="3"
-                      y="4"
-                      width="18"
-                      height="18"
-                      rx="2"
-                      ry="2"
-                    ></rect>
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                     <line x1="16" y1="2" x2="16" y2="6"></line>
                     <line x1="8" y1="2" x2="8" y2="6"></line>
                     <line x1="3" y1="10" x2="21" y2="10"></line>
@@ -137,10 +169,7 @@ const SignupPage: React.FC = () => {
 
             {/* Email */}
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm text-gray-600 mb-2"
-              >
+              <label htmlFor="email" className="block text-sm text-gray-600 mb-2">
                 Email
               </label>
               <input
@@ -154,13 +183,10 @@ const SignupPage: React.FC = () => {
               />
             </div>
 
-            {/* OTP Field - Shows only after Get OTP is clicked */}
+            {/* OTP Field */}
             {showOtpField && (
               <div>
-                <label
-                  htmlFor="otp"
-                  className="block text-sm text-gray-600 mb-2"
-                >
+                <label htmlFor="otp" className="block text-sm text-gray-600 mb-2">
                   OTP
                 </label>
                 <div className="relative">
@@ -174,21 +200,6 @@ const SignupPage: React.FC = () => {
                     placeholder="Enter OTP"
                     maxLength={6}
                   />
-                  <div className="absolute right-3 top-3">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      className="text-gray-400"
-                    >
-                      <path d="M9 12l2 2 4-4"></path>
-                      <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"></path>
-                      <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"></path>
-                    </svg>
-                  </div>
                 </div>
               </div>
             )}
@@ -197,6 +208,7 @@ const SignupPage: React.FC = () => {
             <button
               onClick={showOtpField ? handleSignUp : handleGetOtp}
               disabled={
+                loading ||
                 !formData.username ||
                 !formData.dob ||
                 !formData.email ||
@@ -204,7 +216,7 @@ const SignupPage: React.FC = () => {
               }
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 mt-6 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              {showOtpField ? "Sign up" : "Get OTP"}
+              {loading ? "Please wait..." : showOtpField ? "Sign up" : "Get OTP"}
             </button>
           </div>
 
@@ -223,7 +235,7 @@ const SignupPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Right side  */}
+      {/* Right side */}
       <div className="hidden lg:block lg:w-1/2 h-screen relative overflow-hidden">
         <img
           src="/right-column.png"

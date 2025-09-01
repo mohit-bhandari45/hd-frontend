@@ -14,7 +14,12 @@ const LoginPage: React.FC = () => {
   });
   const [showOtpField, setShowOtpField] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -24,51 +29,83 @@ const LoginPage: React.FC = () => {
   };
 
   const handleSendOtp = async () => {
-    setShowOtpField(true);
-    if (formData.email) {
-      try {
-        const res = await api.post(GET_OTP, { email: formData.email });
-        if (res.status == 200) {
-          setShowOtpField(true);
-        }
-      } catch (e) {
-        console.log(e);
+    if (!formData.email) {
+      setErrorMessage("Please enter your email");
+      return;
+    }
+
+    setErrorMessage("");
+    setSuccessMessage("");
+    setLoading(true);
+
+    try {
+      const res = await api.post(GET_OTP, { email: formData.email });
+      const data = res.data as { success: boolean };
+      if (data.success) {
+        setShowOtpField(true);
+        setSuccessMessage("OTP sent to your email");
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      setErrorMessage(
+        e.response?.data?.error || "Failed to send OTP. Try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSignIn = async () => {
-    if (formData.otp) {
-      try {
-        const res = await api.post(SIGNIN_ENDPOINT, formData);
-        if (res.status == 200) {
-          const token = (res.data as { token: string }).token;
-          localStorage.setItem("token", token);
-          navigate("/dashboard");
-        }
-      } catch (e) {
-        console.log(e);
+    if (!formData.otp) {
+      setErrorMessage("Please enter the OTP");
+      return;
+    }
+
+    setErrorMessage("");
+    setSuccessMessage("");
+    setLoading(true);
+
+    try {
+      const res = await api.post(SIGNIN_ENDPOINT, formData);
+      if (res.status === 200) {
+        const token = (res.data as { token: string }).token;
+        localStorage.setItem("token", token);
+        navigate("/dashboard");
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      setErrorMessage(e.response?.data?.error || "Login failed. Try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleResendOtp = async () => {
+    setErrorMessage("");
+    setSuccessMessage("");
+    setLoading(true);
+
     try {
       const res = await api.post(RESEND_OTP_ENDPOINT, {
         email: formData.email,
       });
-      if (res.status == 200) {
+      const data = res.data as { success: boolean };
+      if (data.success) {
+        setSuccessMessage("OTP resent to your email");
       }
-    } catch (e) {
-      console.log(e);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      setErrorMessage(e.response?.data?.error || "Failed to resend OTP");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-white flex">
       {/* Left side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center py-8">
-        {/* Logo  */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center py-8 relative">
+        {/* Logo */}
         <div
           className="absolute top-6 left-6 flex p-4 items-center gap-2 
                   lg:static lg:mb-10 lg:self-start justify-center w-full lg:w-auto"
@@ -80,7 +117,7 @@ const LoginPage: React.FC = () => {
         <div className="w-full lg:w-3/4 xl:w-2/3 px-8">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-semibold text-gray-900 mb-2 ">
+            <h1 className="text-3xl font-semibold text-gray-900 mb-2">
               Sign in
             </h1>
             <p className="text-sm text-gray-500">
@@ -88,8 +125,22 @@ const LoginPage: React.FC = () => {
             </p>
           </div>
 
+          {/* Alerts */}
+          <div className="space-y-2">
+            {errorMessage && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">
+                {errorMessage}
+              </div>
+            )}
+            {successMessage && (
+              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded">
+                {successMessage}
+              </div>
+            )}
+          </div>
+
           {/* Form */}
-          <div className="space-y-4">
+          <div className="space-y-4 mt-4">
             {/* Email */}
             <div>
               <label
@@ -109,7 +160,7 @@ const LoginPage: React.FC = () => {
               />
             </div>
 
-            {/* OTP Field - Shows only after email is entered and user requests OTP */}
+            {/* OTP Field */}
             {showOtpField && (
               <div>
                 <label
@@ -129,48 +180,33 @@ const LoginPage: React.FC = () => {
                     placeholder="Enter OTP"
                     maxLength={6}
                   />
-                  <div className="absolute right-3 top-3">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      className="text-gray-400"
-                    >
-                      <path d="M9 12l2 2 4-4"></path>
-                      <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"></path>
-                      <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"></path>
-                    </svg>
-                  </div>
                 </div>
 
                 {/* Resend OTP */}
-                <div className="mt-2 text-right">
+                <div className="mt-2 flex justify-between items-center">
                   <button
                     onClick={handleResendOtp}
                     className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    disabled={loading}
                   >
                     Resend OTP
                   </button>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="keepLoggedIn"
+                      checked={keepLoggedIn}
+                      onChange={(e) => setKeepLoggedIn(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label
+                      htmlFor="keepLoggedIn"
+                      className="text-sm text-gray-600"
+                    >
+                      Keep me logged in
+                    </label>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Keep me logged in checkbox - only show when OTP field is visible */}
-            {showOtpField && (
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="keepLoggedIn"
-                  checked={keepLoggedIn}
-                  onChange={(e) => setKeepLoggedIn(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="keepLoggedIn" className="text-sm text-gray-600">
-                  Keep me logged in
-                </label>
               </div>
             )}
 
@@ -178,18 +214,18 @@ const LoginPage: React.FC = () => {
             {!showOtpField ? (
               <button
                 onClick={handleSendOtp}
-                disabled={!formData.email}
+                disabled={!formData.email || loading}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 mt-6 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                Send OTP
+                {loading ? "Please wait..." : "Send OTP"}
               </button>
             ) : (
               <button
                 onClick={handleSignIn}
-                disabled={!formData.otp}
+                disabled={!formData.otp || loading}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 mt-6 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                Sign in
+                {loading ? "Please wait..." : "Sign in"}
               </button>
             )}
           </div>
@@ -209,12 +245,11 @@ const LoginPage: React.FC = () => {
         </div>
       </div>
 
-      
-      {/* Right side  */}
+      {/* Right side */}
       <div className="hidden lg:block lg:w-1/2 relative overflow-hidden">
         <div className="absolute inset-0 flex items-center justify-center">
           <img
-            src="/right-column.png" 
+            src="/right-column.png"
             alt="Login illustration"
             className="w-full h-full object-cover"
           />
