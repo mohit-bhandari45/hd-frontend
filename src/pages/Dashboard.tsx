@@ -217,7 +217,7 @@ const Dashboard: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
             <img src="/icon.png" alt="logo" className="h-10 w-auto" />
           </div>
           <p className="text-gray-600">Loading...</p>
