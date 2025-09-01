@@ -26,9 +26,7 @@ const SignupPage: React.FC = () => {
     if (formData.username && formData.dob && formData.email) {
       setShowOtpField(true);
       try {
-        const res = await api.post(GET_OTP, { email: formData.email });
-        if (res.status == 200) {
-        }
+        await api.post(GET_OTP, { email: formData.email });
       } catch (e) {
         console.log(e);
       }
@@ -39,7 +37,7 @@ const SignupPage: React.FC = () => {
     if (formData.otp) {
       try {
         const res = await api.post(REGISTER_ENDPOINT, formData);
-        if (res.status == 200) {
+        if (res.status == 201) {
           const token = (res.data as { token: string }).token;
           localStorage.setItem("token", token);
           navigate("/dashboard");
